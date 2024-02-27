@@ -15,6 +15,7 @@ import codecs
 import urllib.request
 import urllib.error
 import sys
+import Passwords
 
 
 #pulling in missing dates
@@ -100,7 +101,7 @@ dates = dates[["Date"]]
 
 
 def init_api():
-    api = Garmin('ceceliasciuto@gmail.com', 'Kodak505!')
+    api = Garmin(Passwords.garminusername, Passwords.garminpassword)
     api.login()
 
     return api
