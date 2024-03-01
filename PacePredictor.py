@@ -119,10 +119,10 @@ for activity in activities:
     gpx_data = api.download_activity(
                         activity_id, dl_fmt=api.ActivityDownloadFormat.GPX
                     )
-    output_file = f"/Users/ceceliasciuto/PycharmProjects/racepredictor/garmindata/{str(activity_id)}.KML"
+    output_file = f"/Users/ceceliasciuto/PycharmProjects/racepredictor/garmindata/{str(activity_id)}.GPX"
     with open(output_file, "wb") as fb:
         fb.write(gpx_data)
-print(gpx_data)
+print(output_file)
 data = pd.read_csv("garmindata.csv", sep=",")
 data.drop(['Activity Type', 'Favorite', 'Title','Moving Time','Max HR','Max Run Cadence',
        'Avg Pace', 'Best Pace','Avg Vertical Ratio', 'Avg Vertical Oscillation',
