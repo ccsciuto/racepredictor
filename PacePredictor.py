@@ -2,6 +2,7 @@ import pandas as pd
 import warnings
 from datetime import date
 import datetime
+
 warnings.filterwarnings('ignore')
 from garminconnect import (
     Garmin
@@ -17,8 +18,7 @@ import urllib.error
 import sys
 import Passwords
 
-
-#pulling in missing dates
+# pulling in missing dates
 dates = pd.read_csv("Calendar.csv", sep=",")
 dates = dates[["dt"]]
 dates["dt"] = pd.to_datetime(dates["dt"]).dt.date
@@ -86,10 +86,10 @@ dates["dt"] = pd.to_datetime(dates["dt"]).dt.date
 #
 # CSVText = csv.reader(codecs.iterdecode(CSVBytes, 'utf-8'))
 file = pd.read_csv("weather.csv", sep=",")
-wthr = file[["datetime","dew"]]
+wthr = file[["datetime", "dew"]]
 wthr["Date"] = pd.to_datetime(wthr["datetime"]).dt.date
 
-#Filtering dataset to aug/28 to todays date
+# Filtering dataset to aug/28 to todays date
 start_date = pd.to_datetime('08-28-2021').date()
 end_date = date.today()
 dates = dates[dates["dt"] >= start_date]
@@ -97,7 +97,8 @@ dates = dates[dates["dt"] <= end_date]
 dates["Date"] = dates["dt"]
 dates = dates[["Date"]]
 
-#Pulling in running data
+
+# Pulling in running data
 
 
 def init_api():
@@ -106,58 +107,65 @@ def init_api():
 
     return api
 
+
 api = init_api()
 
 start_date = datetime.date(2021, 8, 28)
 end_date = datetime.date.today()
 
 activities = api.get_activities_by_date(
-                start_date.isoformat(), end_date.isoformat(), 'running')
+    start_date.isoformat(), end_date.isoformat(), 'running')
+
+headers = {
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
 
 for activity in activities:
     activity_id = activity["activityId"]
     gpx_data = api.download_activity(
-                        activity_id, dl_fmt=api.ActivityDownloadFormat.GPX
-                    )
+        activity_id, dl_fmt=api.ActivityDownloadFormat.GPX
+    )
     output_file = f"/Users/ceceliasciuto/PycharmProjects/racepredictor/garmindata.GPX"
     with open(output_file, "wb") as fb:
         fb.write(gpx_data)
     print(output_file)
 data = pd.read_csv("garmindata.csv", sep=",")
-data.drop(['Activity Type', 'Favorite', 'Title','Moving Time','Max HR','Max Run Cadence',
-       'Avg Pace', 'Best Pace','Avg Vertical Ratio', 'Avg Vertical Oscillation',
-       'Training Stress Score®', 'Grit', 'Flow', 'Dive Time', 'Min Temp',
-       'Surface Interval', 'Decompression', 'Best Lap Time', 'Number of Laps',
-       'Max Temp',  'Elapsed Time', 'Min Elevation',
-       'Max Elevation'], axis=1, inplace=True)
+data.drop(['Activity Type', 'Favorite', 'Title', 'Moving Time', 'Max HR', 'Max Run Cadence',
+           'Avg Pace', 'Best Pace', 'Avg Vertical Ratio', 'Avg Vertical Oscillation',
+           'Training Stress Score®', 'Grit', 'Flow', 'Dive Time', 'Min Temp',
+           'Surface Interval', 'Decompression', 'Best Lap Time', 'Number of Laps',
+           'Max Temp', 'Elapsed Time', 'Min Elevation',
+           'Max Elevation'], axis=1, inplace=True)
 
-#Cleaning running data
+# Cleaning running data
 times = pd.to_timedelta(data['Time'])
 dist = data["Distance"]
 data["Date"] = pd.to_datetime(data["Date"]).dt.date
 data["Avg Speed"] = dist / (times / pd.Timedelta('1 hour'))
-data = data.replace(to_replace="--",value=0)
-data["Calories"] = data["Calories"].str.replace(',','').astype(float)
-#combing weather data
-data = pd.merge(data,wthr, how='left')
-data["Power"] = ((data["Avg Speed"]/data["Avg HR"])*(data["dew"]+50))*10
+data = data.replace(to_replace="--", value=0)
+data["Calories"] = data["Calories"].str.replace(',', '').astype(float)
+# combing weather data
+data = pd.merge(data, wthr, how='left')
+data["Power"] = ((data["Avg Speed"] / data["Avg HR"]) * (data["dew"] + 50)) * 10
 data["Power"] = data["Power"].astype(float)
-data.sort_values(by="Date",ascending=True,inplace=True)
-
+data.sort_values(by="Date", ascending=True, inplace=True)
 pickle_in = open("run_model.pickle", "rb")
 model2 = pickle.load(pickle_in)
 t_date = date.today()
 l_date = date(2024, 2, 19)
 delta = l_date - t_date
-index_future_dates = pd.date_range(start=date.today(),end='2024-02-19')
-pred2=model2.predict(start=len(data),end=len(data)+delta.days,typ='levels').rename('ARIMA Predictions')
-pred2.index=index_future_dates
-AVGHR = float(input("What is your expected average heart rate? "))
-dew=(10.25+50)
-mph = ((pred2[-1]/10)/dew)*AVGHR
-if (((60/mph)-10)*60).astype(int) >= 120:
-    print(round(mph,2), "MPH or",str((60/mph).astype(int))+":"+str(f"{((((60/mph)-10)*60).astype(int)-120):02d}")+"/Mile")
-elif (((60/mph)-10)*60).astype(int) > 60:
-    print(round(mph,2), "MPH or",str((60/mph).astype(int))+":"+str(f"{((((60/mph)-10)*60).astype(int)-60):02d}")+"/Mile")
+index_future_dates = pd.date_range(start=date.today(), end='2024-02-19')
+pred2 = model2.predict(start=len(data), end=len(data) + delta.days, typ='levels').rename('ARIMA Predictions')
+pred2.index = index_future_dates
+avg_hr = float(input("What is your expected average heart rate? "))
+dew = (10.25 + 50)
+mph = round(((pred2[-1] / 10) / dew) * avg_hr, 2)
+hour = str((60 / mph).astype(int))
+minute = (((60 / mph) - 10) * 60).astype(int)
+if (((60 / mph) - 10) * 60).astype(int) >= 120:
+    print(f"{mph} MPH or {hour}:{minute - 120}/Mile")
+elif (((60 / mph) - 10) * 60).astype(int) > 60:
+    print(f"{mph} MPH or {hour}:{minute - 60}/Mile")
 else:
-    print(round(mph,2), "MPH or",str((60/mph).astype(int))+":"+str(f"{abs(((((60/mph)-10)*60).astype(int))):02d}")+"/Mile")
+    print(f"{mph} MPH or {hour}:{minute}/Mile")
